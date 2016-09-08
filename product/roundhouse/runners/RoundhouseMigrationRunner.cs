@@ -313,6 +313,7 @@ namespace roundhouse.runners
                 foreach (var c in commands)
                 {
                     Log.bound_to(this).log_an_info_event_containing(c);
+                    Log.bound_to(this).log_an_info_event_containing("GO");
                 }
                 Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
             }
