@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace roundhouse.runners
 {
     using System;
@@ -282,14 +284,16 @@ namespace roundhouse.runners
             var fileNames = configuration.SearchAllSubdirectoriesInsteadOfTraverse
                                 ? file_system.get_all_file_name_strings_recurevly_in(directory, SQL_EXTENSION)
                                 : file_system.get_all_file_name_strings_in(directory, SQL_EXTENSION);
+            var commands = new List<string>();
             foreach (string sql_file in fileNames)
             {
                 string sql_file_text = replace_tokens(get_file_text(sql_file));
                 Log.bound_to(this).log_a_debug_event_containing(" Found and running {0}.", sql_file);
+                
                 bool the_sql_ran = database_migrator.run_sql(sql_file_text, file_system.get_file_name_from(sql_file),
                                                              migration_folder.should_run_items_in_folder_once,
                                                              migration_folder.should_run_items_in_folder_every_time,
-                                                             version_id, migrating_environment, repository_version, repository_path, connection_type);
+                                                             version_id, migrating_environment, repository_version, repository_path, connection_type, commands);
                 if (the_sql_ran)
                 {
                     try
@@ -302,6 +306,15 @@ namespace roundhouse.runners
                                                                           System.Environment.NewLine, ex.to_string());
                     }
                 }
+            }
+            if (commands.Count > 0)
+            {
+                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
+                foreach (var c in commands)
+                {
+                    Log.bound_to(this).log_an_info_event_containing(c);
+                }
+                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
             }
 
             if (configuration.SearchAllSubdirectoriesInsteadOfTraverse) return;

@@ -165,7 +165,7 @@ namespace roundhouse.migrators
             return database.insert_version_and_get_version_id(repository_path, repository_version);
         }
 
-        public bool run_sql(string sql_to_run, string script_name, bool run_this_script_once, bool run_this_script_every_time, long version_id, Environment environment, string repository_version, string repository_path, ConnectionType connection_type)
+        public bool run_sql(string sql_to_run, string script_name, bool run_this_script_once, bool run_this_script_every_time, long version_id, Environment environment, string repository_version, string repository_path, ConnectionType connection_type, List<string> commands )
         {
             bool this_sql_ran = false;
             bool skip_run = is_baseline;
@@ -217,6 +217,7 @@ namespace roundhouse.migrators
                     }
                     else
                     {
+                        commands.AddRange(get_statements_to_run(sql_to_run));
                         Log.bound_to(this).log_a_warning_event_containing(" DryRun: {0} on {1} - {2}.", script_name, database.server_name, database.database_name);
                     }
                 }
