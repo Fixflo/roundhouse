@@ -30,7 +30,7 @@ namespace roundhouse.runners
         private readonly bool use_simple_recovery;
         private readonly ConfigurationPropertyHolder configuration;
         private const string SQL_EXTENSION = "*.sql";
-
+        private Queue<string> commands = new Queue<string>();
         public RoundhouseMigrationRunner(
             string repository_path,
             Environment environment,
@@ -131,7 +131,7 @@ namespace roundhouse.runners
                     Log.bound_to(this).log_an_info_event_containing("{0}", "=".PadRight(50, '='));
                     Log.bound_to(this).log_an_info_event_containing("Migration Scripts");
                     Log.bound_to(this).log_an_info_event_containing("{0}", "=".PadRight(50, '='));
-
+                    var command = new Queue<string>();
                     run_out_side_of_transaction_folder(known_folders.before_migration, version_id, new_version);
                     
                     database_migrator.open_admin_connection();
@@ -166,6 +166,21 @@ namespace roundhouse.runners
                     }
                     log_and_traverse(known_folders.permissions, version_id, new_version, ConnectionType.Default);
                     run_out_side_of_transaction_folder(known_folders.after_migration, version_id, new_version);
+
+                    if (commands.Count > 0)
+                    {
+                        var command_string = "---------------------DRYRUN-----------------------" + System.Environment.NewLine;
+                        foreach (var c in commands)
+                        {
+                            command_string += c;
+                            command_string += System.Environment.NewLine;
+                            command_string += "GO";
+                            command_string += System.Environment.NewLine;
+                        }
+
+                        Log.bound_to(this).log_an_info_event_containing(command_string);
+                        Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
+                    }
 
                     Log.bound_to(this).log_an_info_event_containing(
                         "{0}{0}{1} v{2} has kicked your database ({3})! You are now at version {4}. All changes and backups can be found at \"{5}\".",
@@ -220,23 +235,8 @@ namespace roundhouse.runners
                                                             folder.should_run_items_in_folder_every_time ? " These scripts will run every time" : string.Empty);
 
             Log.bound_to(this).log_an_info_event_containing("{0}", "-".PadRight(50, '-'));
-            var commands = new Queue<string>();
             traverse_files_and_run_sql(folder.folder_full_path, version_id, folder, environment, new_version, connection_type, commands);
-
-            if (commands.Count > 0)
-            {
-                var command_string = "---------------------DRYRUN-----------------------\n";
-                foreach (var c in commands)
-                {
-                    command_string += c;
-                    command_string += '\n';
-                    command_string += "GO";
-                    command_string += '\n';
-                }
-
-                Log.bound_to(this).log_an_info_event_containing(command_string);
-                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
-            }
+           
         }
 
         public void run_out_side_of_transaction_folder(MigrationsFolder folder, long version_id, string new_version)
