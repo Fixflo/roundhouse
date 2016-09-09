@@ -220,7 +220,23 @@ namespace roundhouse.runners
                                                             folder.should_run_items_in_folder_every_time ? " These scripts will run every time" : string.Empty);
 
             Log.bound_to(this).log_an_info_event_containing("{0}", "-".PadRight(50, '-'));
-            traverse_files_and_run_sql(folder.folder_full_path, version_id, folder, environment, new_version, connection_type);
+            var commands = new Queue<string>();
+            traverse_files_and_run_sql(folder.folder_full_path, version_id, folder, environment, new_version, connection_type, commands);
+
+            if (commands.Count > 0)
+            {
+                var command_string = "---------------------DRYRUN-----------------------\n";
+                foreach (var c in commands)
+                {
+                    command_string += c;
+                    command_string += '\n';
+                    command_string += "GO";
+                    command_string += '\n';
+                }
+
+                Log.bound_to(this).log_an_info_event_containing(command_string);
+                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
+            }
         }
 
         public void run_out_side_of_transaction_folder(MigrationsFolder folder, long version_id, string new_version)
@@ -277,14 +293,13 @@ namespace roundhouse.runners
         //todo:down story
 
         public void traverse_files_and_run_sql(string directory, long version_id, MigrationsFolder migration_folder, Environment migrating_environment,
-                                               string repository_version, ConnectionType connection_type)
+                                               string repository_version, ConnectionType connection_type, Queue<string> commands)
         {
             if (!file_system.directory_exists(directory)) return;
 
             var fileNames = configuration.SearchAllSubdirectoriesInsteadOfTraverse
                                 ? file_system.get_all_file_name_strings_recurevly_in(directory, SQL_EXTENSION)
                                 : file_system.get_all_file_name_strings_in(directory, SQL_EXTENSION);
-            var commands = new List<string>();
             foreach (string sql_file in fileNames)
             {
                 string sql_file_text = replace_tokens(get_file_text(sql_file));
@@ -307,21 +322,12 @@ namespace roundhouse.runners
                     }
                 }
             }
-            if (commands.Count > 0)
-            {
-                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
-                foreach (var c in commands)
-                {
-                    Log.bound_to(this).log_an_info_event_containing(c);
-                    Log.bound_to(this).log_an_info_event_containing("GO");
-                }
-                Log.bound_to(this).log_an_info_event_containing("---------------------DRYRUN-----------------------");
-            }
+           
 
             if (configuration.SearchAllSubdirectoriesInsteadOfTraverse) return;
             foreach (string child_directory in file_system.get_all_directory_name_strings_in(directory))
             {
-                traverse_files_and_run_sql(child_directory, version_id, migration_folder, migrating_environment, repository_version, connection_type);
+                traverse_files_and_run_sql(child_directory, version_id, migration_folder, migrating_environment, repository_version, connection_type, commands);
             }
         }
 
